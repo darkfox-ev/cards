@@ -18,7 +18,7 @@ class AI_Player(Player):
 
     def __init__(self):
         Player.__init__(self)
-        
+        # added comment
 
 
     def select_crib_cards(self, num_crib_cards):
