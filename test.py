@@ -74,7 +74,33 @@ def test_count_played_points():
     print(h)
     print(Crib.check_played_points(h))
 
+
+def test_play_counting():
+    #this current requires interaction at terminal and manual inspection
+    
+    p1 = Crib.Player()
+    p2 = Crib.Player()
+    r = Crib.Round(2, (p1,p2), 0)
+
+    h1 = CardDeck.Hand()
+    h1.receive_card(CardDeck.Card('H',9))
+    h1.receive_card(CardDeck.Card('H',10))
+    h1.receive_card(CardDeck.Card('H',11))
+    h1.receive_card(CardDeck.Card('H',12))
+    p1.hand = h1
+
+    h2 = CardDeck.Hand()
+    h2.receive_card(CardDeck.Card('S',10))
+    h2.receive_card(CardDeck.Card('S',2))
+    h2.receive_card(CardDeck.Card('S',11))
+    h2.receive_card(CardDeck.Card('S',1))
+    p2.hand = h2
+    
+    print(r)
+    r.play()
+
+
 if __name__ == '__main__':
-    typical_game()
-    #test_count_played_points()
+    #typical_game()
+    test_play_counting()
     

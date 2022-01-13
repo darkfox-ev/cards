@@ -12,7 +12,18 @@ class Player:
         self.hand = CardDeck.Hand() #current hand before playing
         self.played_cards = CardDeck.Hand()
 
-        
+    def play_card(self, current_count):
+        print(self.hand)
+        print('Count: %s' % current_count)
+        card_played = input('Choose: ')
+        if card_played == 'go':
+            return None
+        else:
+            card_played = int(card_played)
+        c = self.hand.play_card(card_played)
+        print(c)
+        return c
+
 
 class AI_Player(Player):
 
@@ -221,7 +232,8 @@ class Round:
 
             # check for end condition
             if num_played_cards == self.num_players * 4:
-                if self.count < 31 and num_gos < self.num_players:
+                if self.count > 0 and num_gos < self.num_players:
+                    #the count will be zero if the last play was to 31
                     self.score[who_played_last] += 1
                     print('Player {}: ... last card for 1'.format(who_played_last))
                 playing = False
