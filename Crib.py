@@ -24,6 +24,19 @@ class Player:
         print(c)
         return c
 
+    def select_crib_cards(self, num_crib_cards):
+        print(self.hand)
+        response = input('Pick %s cards for crib: ' % num_crib_cards)
+        #response should be indices spearated by space
+        
+        card_indices = [int(s) for s in response.split(' ')]
+        card_indices.sort(reverse=True)
+        print(card_indices)
+        crib_cards = []
+        for i in card_indices:
+            crib_cards.append(self.hand.play_card(i))
+        return crib_cards
+
 
 class AI_Player(Player):
 

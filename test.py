@@ -99,8 +99,16 @@ def test_play_counting():
     print(r)
     r.play()
 
+def test_play_against_ai():
+
+    p1 = Crib.Player()
+    p2 = Crib.AI_Player()
+    g = Crib.Game(2, [p1, p2])
+    g.play()
+
+
 
 if __name__ == '__main__':
     #typical_game()
-    test_play_counting()
+    test_play_against_ai()
     
