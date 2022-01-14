@@ -76,7 +76,7 @@ class Deck:
 
     def remove_cards_inverse(self, cards_to_keep):
         """ removes cards not in list to keep
-        returns cards removed """
+        returns list of cards removed """
         cards_removed = []
         for i in range(self.num_cards, 0, -1):
             found = False
