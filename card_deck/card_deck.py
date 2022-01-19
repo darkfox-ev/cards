@@ -11,6 +11,7 @@ class Card:
     def __init__(self, suit = 'H', number = 1):
         self.suit = suit # one of [S,H,C,D]
         self.number = number # ace = 1 through K = 13
+        self.value = min(10,number)
         
     def __str__(self):
         
