@@ -3,6 +3,7 @@
 import random
 from card_deck import card_deck
 from logger import logger
+from interface import interface
 from itertools import combinations
 import copy
 
@@ -125,7 +126,9 @@ class Game:
         else:
             self.crib_player = crib_player
 
-        #self.logger = Logger.Logger()
+        self.interface = interface.Interface()
+        self.interface.print_line('Welcome to the Game of Crib!')
+        self.interface.print_line('============================')
 
     def play(self):
         
