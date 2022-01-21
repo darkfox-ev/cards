@@ -15,7 +15,10 @@ class Card:
         
     def __str__(self):
         
-        return '{}{}'.format(Card.VALUES[self.number-1], Card.SUIT_MAPPING[self.suit])
+        return '{}{}{}'.format(
+            '' if self.number == 10 else ' ',
+            Card.VALUES[self.number-1],
+            Card.SUIT_MAPPING[self.suit])
 
 class Deck:
 
