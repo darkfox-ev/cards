@@ -46,7 +46,7 @@ class Interface:
         self.terminal = Terminal()
         self.terminal.clear_screen()
         self.current_display = OrderedDict() #dict of sections for display
-
+        self.score = None
 
     def print_line(self, text, centre=False):
         x = (self.terminal.width - len(text)) // 2 if centre else 1
@@ -70,6 +70,7 @@ class Interface:
 
     def set_game(self, g):
         self.game = g
+        self.score = [0 for i in range(g.num_players)]
     
     def welcome(self):
         pass
@@ -108,6 +109,7 @@ class CribInterface(Interface):
     COL_WIDTH = 15
 
     def __init__(self):
+        
         Interface.__init__(self)
 
 
@@ -142,7 +144,7 @@ class CribInterface(Interface):
                 '*' if i == self.game.crib_player else ' ',
                 self.game.players[i].name,
                 ' ' * padding,
-                self.game.score[i])
+                self.score[i])
 
             header.append(s)
         header.append('-' * self.terminal.width)
@@ -191,6 +193,7 @@ class CribInterface(Interface):
         if turn_up.number == 11:
             self.current_display['turn_up'][0] += \
                 '  (%s +2)' % self.game.players[self.game.game_round.crib_player].name
+            self.score[self.game.game_round.crib_player] += 2
         self.update_display(show_hand=True)
 
 
@@ -251,10 +254,12 @@ class CribInterface(Interface):
             play_line += str(card_played)
             if score > 0:
                 play_line += ' +%s' % score
+                self.score[current_player] += score
         elif count > 0:
             play_line += ' Go'
         elif score > 0:
             play_line += ' +%s' % score
+            self.score[current_player] += score
         if play_line != ' +1':
             play_line += ' ' * (CribInterface.COL_WIDTH - len(play_line))
 
@@ -296,9 +301,11 @@ class CribInterface(Interface):
             score_lines.append('%s --> %s' % (str(self.game.players[p].played_cards),
                                               hand_score[p]))
             score_lines.append(' ')
+            self.score[p] += hand_score[p]
         score_lines[-3] += '%scrib:' % (' ' * (24 - len(score_lines[-3])))
         score_lines[-2] += '%s%s --> %s' % (' ' * (24 - len(score_lines[-2])),
                                             str(self.game.game_round.crib), crib_score)
+        self.score[self.game.game_round.crib_player] += crib_score
 
         self.current_display['score_lines'] = score_lines
         self.update_display(show_hand=False)
@@ -306,6 +313,11 @@ class CribInterface(Interface):
         self.reset_display()
 
     def display_winner(self, winner):
+        self.reset_display()
+        self.update_display()
+        self.current_display['winner'] = ['',]
+        self.current_display['winner'].append('%s wins!' % self.game.players[winner].name)
+        self.update_display()
         self.get_input('Press <ENTER> to continue')
 
 
