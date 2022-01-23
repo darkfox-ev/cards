@@ -279,7 +279,7 @@ class CribInterface(Interface):
         self.get_input('Press <ENTER> to continue')
 
 
-    def show_round_score(self):
+    def show_round_score(self, hand_score, crib_score):
 
         """
         AI1.0 hand:
@@ -293,11 +293,12 @@ class CribInterface(Interface):
             for i in range(1, self.game.num_players + 1)]
         for p in play_order:
             score_lines.append('%s hand:' % self.game.players[p].name)
-            score_lines.append('%s --> ##' % str(self.game.players[p].hand))
+            score_lines.append('%s --> %s' % (str(self.game.players[p].played_cards),
+                                              hand_score[p]))
             score_lines.append(' ')
-        score_lines[-3] += '%scrib:' % (' ' * (20 - len(score_lines[-3])))
-        score_lines[-2] += '%s%s --> ##' % (' ' * (20 - len(score_lines[-2])),
-                                            str(self.game.game_round.crib))
+        score_lines[-3] += '%scrib:' % (' ' * (24 - len(score_lines[-3])))
+        score_lines[-2] += '%s%s --> %s' % (' ' * (24 - len(score_lines[-2])),
+                                            str(self.game.game_round.crib), crib_score)
 
         self.current_display['score_lines'] = score_lines
         self.update_display(show_hand=False)

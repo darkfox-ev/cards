@@ -285,6 +285,7 @@ class Round:
                 if card_played:
                     self.count += card_played.value
                     played_cards.receive_card(card_played)
+                    self.players[current_player].played_cards.receive_card(card_played)
                     who_played_last = current_player
                     temp_score = self.score_played(card_played, played_cards)
                     self.score[who_played_last] += temp_score
@@ -319,10 +320,13 @@ class Round:
 
         
     def score_hands(self):
+        hand_score = [0 for _ in self.players]
         for i in range(self.num_players):
-            self.score[i] += count_hand(self.players[i].played_cards, self.turn_up)
-        self.score[self.crib_player] += count_hand(self.crib, self.turn_up)
-        self.interf.show_round_score()
+            hand_score[i] = count_hand(self.players[i].played_cards, self.turn_up)
+            self.score[i] += hand_score[i]
+        crib_score = count_hand(self.crib, self.turn_up)
+        self.score[self.crib_player] += crib_score
+        self.interf.show_round_score(hand_score, crib_score)
         return 'ok'
 
 
