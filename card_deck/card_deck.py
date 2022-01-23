@@ -11,10 +11,14 @@ class Card:
     def __init__(self, suit = 'H', number = 1):
         self.suit = suit # one of [S,H,C,D]
         self.number = number # ace = 1 through K = 13
+        self.value = min(10,number)
         
     def __str__(self):
         
-        return '{}{}'.format(Card.VALUES[self.number-1], Card.SUIT_MAPPING[self.suit])
+        return '{}{}{}'.format(
+            '' if self.number == 10 else ' ',
+            Card.VALUES[self.number-1],
+            Card.SUIT_MAPPING[self.suit])
 
 class Deck:
 
@@ -76,7 +80,7 @@ class Deck:
 
     def remove_cards_inverse(self, cards_to_keep):
         """ removes cards not in list to keep
-        returns cards removed """
+        returns list of cards removed """
         cards_removed = []
         for i in range(self.num_cards, 0, -1):
             found = False

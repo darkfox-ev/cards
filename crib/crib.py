@@ -3,47 +3,80 @@
 import random
 from card_deck import card_deck
 from logger import logger
+from interface import interface
 from itertools import combinations
 import copy
 
 
 class Player:
-
     def __init__(self):
         self.hand = card_deck.Hand() #current hand before playing
         self.played_cards = card_deck.Hand()
 
+
+class HumanPlayer(Player):
+    def __init__(self, player_name, interf):
+        Player.__init__(self)
+        self.name = player_name
+        self.interf = interf
+
+
     def play_card(self, current_count):
-        print(self.hand)
-        print('Count: %s' % current_count)
-        card_played = input('Choose: ')
-        if card_played == 'go':
+
+        if self.hand.num_cards == 0:
+            return None
+
+        card_chosen = self.interf.get_card_choice()
+        
+        if card_chosen is None:
             return None
         else:
-            card_played = int(card_played)
-        c = self.hand.play_card(card_played)
-        print(c)
-        return c
+            c = self.hand.play_card(card_chosen)
+            return c
+
 
     def select_crib_cards(self, num_crib_cards):
-        print(self.hand)
-        response = input('Pick %s cards for crib: ' % num_crib_cards)
-        #response should be indices spearated by space
+        crib_chosen = self.interf.select_crib_cards(num_crib_cards)
+        crib_chosen.sort(reverse=True)
         
-        card_indices = [int(s) for s in response.split(' ')]
+        crib_cards = []
+        for i in crib_chosen:
+            crib_cards.append(self.hand.play_card(i))
+        return crib_cards
+
+
+class Test_Player(Player):
+    def __init__(self, play_sequence):
+        Player.__init__(self)
+        self.play_sequence = play_sequence
+
+
+    def select_crib_cards(self, num_crib_cards):
+        """ will choose the cards indicated next in the play sequence list """
+        card_indices = [self.play_sequence.pop(0) for i in range(num_crib_cards)]
         card_indices.sort(reverse=True)
-        print(card_indices)
         crib_cards = []
         for i in card_indices:
             crib_cards.append(self.hand.play_card(i))
         return crib_cards
 
+    
+    def play_card(self, current_count):
+        """ will pay the card next in the play sequence list, -1 for "go" """
+        card_index = self.play_sequence.pop(0)
+        if card_index >= 0:
+            return self.hand.play_card(card_index)
+        else:
+            return None
+                
 
 class AI_Player(Player):
+    AI_VER = 1.0
+
 
     def __init__(self):
         Player.__init__(self)
-        # added comment
+        self.name = 'AI%s' % str(AI_Player.AI_VER)
 
 
     def select_crib_cards(self, num_crib_cards):
@@ -76,10 +109,9 @@ class AI_Player(Player):
 
 
 class Game:
-    
     CARDS_PER_HAND = {2:6,3:5,4:5} # keys are number of players
 
-    def __init__(self, num_players, players, crib_player=None):
+    def __init__(self, num_players, players, interf, crib_player=None):
 
         if num_players < 2 or num_players > 4:
             raise ValueError
@@ -90,71 +122,69 @@ class Game:
         self.players = players
         self.round_number = 0
         self.score = [0 for _ in range(num_players)]
-        
+        self.interf = interf
+
         if not crib_player:
             self.crib_player = random.randint(0,num_players-1)
-            
         elif crib_player < 0 or crib_player >= num_players:
             raise ValueError
         else:
             self.crib_player = crib_player
 
-        #self.logger = Logger.Logger()
+        game_details = ''
+        self.logger = logger.Logger(game_details)
+        
 
     def play(self):
-        
+        self.interf.start_game()
+
         while max(self.score) < 120:
             self.round_number += 1
-            game_round = Round(self.num_players, self.players, self.crib_player)
+            self.game_round = Round(self.num_players, self.players, self.crib_player, self.interf)
+            self.logger.new_round(self.round_number, self.game_round.deal_cards())
+            self.logger.crib(self.game_round.establish_crib())
+            self.logger.turn_up(self.game_round.establish_turn_up())
+            self.logger.the_play(self.game_round.play())
+            self.logger.score_hands(self.game_round.score_hands())
+            self.game_round.reset()
             
-            print('Round {} (player {} crib):'.format(self.round_number,self.crib_player))
-            for i in range(self.num_players):
-                print('Player {}: {}'.format(i,str(game_round.players[i].hand)))
-            
-            game_round.establish_crib()
-            game_round.establish_turn_up()
-            print('\n')
-            print(game_round)
-            
-            print('\n the play...')
-            game_round.play()
-            game_round.score_hands()
-            game_round.reset()
-            
-            self.score = [self.score[i] + game_round.score[i] for i in range(self.num_players)]
-            for i in range(self.num_players):
-                print('Player {}: {}/{}'.format(i, game_round.score[i], self.score[i]))
-
+            self.score = [min(120, self.score[i] + self.game_round.score[i]) for i in range(self.num_players)]
             self.crib_player = (self.crib_player + 1) % self.num_players
-            print('\n')
 
         winner = self.score.index(max(self.score))
-        print('Player {} wins!'.format(winner))
+        self.interf.display_winner(winner)
+        self.logger.record_winner(winner)
         
 
 class Round:
-
-    def __init__(self, num_players, players, crib_player):
+    def __init__(self, num_players, players, crib_player, interf=None):
         self.deck = card_deck.Deck(52)
-        self.deck.shuffle()
         self.num_players = num_players
         self.players = players
         self.score = [0 for _ in range(num_players)]
         self.crib_player = crib_player
+        self.crib = card_deck.Hand()
+        self.turn_up = None
+        self.count = 0
+        
+        if interf:
+            self.interf = interf
+        else:
+            self.interf = interface.Interface()
+    
 
+    def deal_cards(self):
+        self.deck.shuffle()
         for i in range(Game.CARDS_PER_HAND[self.num_players]):
             for p in self.players:
                 p.hand.receive_card(self.deck.deal_card())
-        
-        self.crib = card_deck.Hand()
-        self.turn_up = None
+        self.interf.show_hand()
 
-        #self.the_play = [] # list of dicts.. the dicts are {player: , card: , count: , points_awarded: }
-
-        self.count = 0
+        return 'ok'
         
 
     def __str__(self):
+
         s = ''
         for i in range(self.num_players):
             s += 'player {}: {}\n'.format(i, str(self.players[i].hand))
@@ -177,117 +207,133 @@ class Round:
         if self.num_players == 3:
             self.crib.receive_card(self.deck.deal_card())
 
+        return 'ok'
+
 
     def establish_turn_up(self):
         self.turn_up = self.deck.cut_deck()
         if self.turn_up.suit == 'J':
             self.score[self.crib_player] += 2
 
+        self.interf.show_turn_up(self.turn_up)
+        return 'ok'
+
+
+    def check_played(self, card_played, current_player):
+        """ check if the card_played is valid"""
+
+        if not card_played:
+            valid_play = True
+            for c in self.players[current_player].hand.cards:
+                if self.count + c.value <= 31:
+                    valid_play = False
+
+        elif self.count + card_played.value > 31:
+            valid_play = False
+        
+        else:
+            valid_play= True
+
+        return valid_play
+
+
+    def score_played(self, card_played, played_cards):
+        """ calculates the score the for the current played card given the cards already played"""
+
+        score = 0
+        if self.count == 15 or self.count == 31:
+            score += 2
+
+        if played_cards.num_cards >= 2:
+            matches = 0
+            while matches < played_cards.num_cards and played_cards.cards[-1].number == played_cards.cards[-1-matches].number:
+                matches += 1
+            if matches > 1:
+                score += (2,6,12)[matches-2] #2 points for pair, 6 for three of kind, 12 for 4 of kind
+
+            len_run = played_cards.num_cards
+            while len_run > 2:
+                numbers = sorted([c.number for c in played_cards.cards[-len_run:]])
+                if numbers == list(range(min(numbers),max(numbers)+1)):
+                    score += len_run
+                    break
+                else:
+                    len_run -= 1
+    
+        return score
+
 
     def play(self):
         self.count = 0
-        count_played_cards = card_deck.Hand()
-        num_played_cards = 0
-        num_gos = 0
-        who_played_last = None
+        played_cards = card_deck.Hand()
+        gos = [False for _ in self.players]
         current_player = (self.crib_player + 1) % self.num_players
+        who_played_last = None
+        self.interf.create_play_display()
+
         playing = True
-        
         while playing:
-            valid_play = False
-            while not valid_play:
+            
+            #if self.players[current_player].hand.num_cards == 0:
+            #    gos[current_player] = True
+            if not gos[current_player]:
                 card_played = self.players[current_player].play_card(self.count) # play None for a "Go"
-                
-                # check if valid card
-                if not card_played:
-                    # check if Go is valid
-                    valid_play = True
-                    for c in self.players[current_player].hand.cards:
-                        if self.count + min(10,c.number) <= 31:
-                            valid_play = False
-                elif self.count + min(10, card_played.number) > 31:
-                    valid_play = False
+                while not self.check_played(card_played, current_player):
+                    self.players[current_player].hand.receive_card(card_played) # return card
+                    card_played = self.players[current_player].play_card(self.count) # play None for a "Go"
+
+                if card_played:
+                    self.count += card_played.value
+                    played_cards.receive_card(card_played)
+                    self.players[current_player].played_cards.receive_card(card_played)
+                    who_played_last = current_player
+                    temp_score = self.score_played(card_played, played_cards)
+                    self.score[who_played_last] += temp_score
+                    self.interf.show_play(current_player, card_played, self.count, temp_score)
+                    
                 else:
-                    valid_play= True
-
-                if not valid_play:
-                    # return card
-                    self.players[current_player].hand.receive_card(card_played)
-
-            # valid play
-            temp_score = 0
-            if not card_played:
-                print('Player {}: Go'.format(current_player))
-                num_gos += 1
-            else:
-                self.count += min(10, card_played.number)
-                count_played_cards.receive_card(card_played)
-                self.players[current_player].played_cards.receive_card(card_played)
-                num_played_cards += 1
-                who_played_last = current_player
-                num_gos = 0 # these reset if the other player can play
-                if self.count == 15 or self.count == 31:
-                    temp_score += 2
-
-                temp_score += check_played_points(count_played_cards)
-                
-                self.score[current_player] += temp_score
-                print('Player {}: {}, count: {}, for {}'.format(current_player, str(card_played), self.count, temp_score))
-
-            if self.count == 31 or num_gos == self.num_players:
-                if num_gos == self.num_players:
-                    temp_score += 1
+                    gos[current_player] = True
+                    self.interf.show_play(current_player, None, self.count, 0)
+                    
+            if self.count == 31 or all(gos):
+                if all(gos):
                     self.score[who_played_last] += 1
-                    print('Player {}: ... for 1'.format(who_played_last))
-                
+                    self.interf.show_play(who_played_last, None, 0, 1)
+                    
                 self.count = 0
-                num_gos = 0
-                count_played_cards.reset()
-
+                gos = [False for _ in self.players]
+                played_cards.reset()
+                
             # check for end condition
-            if num_played_cards == self.num_players * 4:
-                if self.count > 0 and num_gos < self.num_players:
+            if all([p.hand.num_cards == 0 for p in self.players]):
+                if self.count > 0 and not all(gos):
                     #the count will be zero if the last play was to 31
                     self.score[who_played_last] += 1
-                    print('Player {}: ... last card for 1'.format(who_played_last))
+                    self.interf.show_play(who_played_last, None, 0, 1)
+                self.interf.end_play()  
                 playing = False
                 print('\n')
             else:
                 current_player = (current_player + 1) % self.num_players
 
+        return 'ok'
+
         
     def score_hands(self):
+        hand_score = [0 for _ in self.players]
         for i in range(self.num_players):
-            self.score[i] += count_hand(self.players[i].played_cards, self.turn_up)
-        self.score[self.crib_player] += count_hand(self.crib, self.turn_up)
+            hand_score[i] = count_hand(self.players[i].played_cards, self.turn_up)
+            self.score[i] += hand_score[i]
+        crib_score = count_hand(self.crib, self.turn_up)
+        self.score[self.crib_player] += crib_score
+        self.interf.show_round_score(hand_score, crib_score)
+        return 'ok'
 
 
     def reset(self):
         for p in self.players:
             p.hand.reset()
             p.played_cards.reset()
-
-
-def check_played_points(hand):
-    if hand.num_cards < 2:
-        return 0
-
-    matches = 0
-    while matches < hand.num_cards and hand.cards[-1].number == hand.cards[-1-matches].number:
-        matches += 1
-        
-    if matches > 1:
-        return (2,6,12)[matches-2] #2 points for pair, 6 for three of kind, 12 for 4 of kind
-
-    len_run = hand.num_cards
-    while len_run > 2:
-        numbers = sorted([c.number for c in hand.cards[-len_run:]])
-        if numbers == list(range(min(numbers),max(numbers)+1)):
-            return len_run
-        else:
-            len_run -= 1
-    
-    return 0
 
 
 def count_hand(hand, turn_up):
