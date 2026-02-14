@@ -300,13 +300,16 @@ class CribInterface(Interface):
         play_order = [(self.game.game_round.crib_player + i) % self.game.num_players
             for i in range(1, self.game.num_players + 1)]
 
-        # remove previous turn indicator and count line (turn is last, so remove first)
-        for _ in range(2):
-            try:
-                stripped = ANSI_PATTERN.sub('', play_display[-1])
-                if stripped.startswith('>>') or stripped.startswith('count'):
-                    del play_display[-1]
-            except IndexError:
+        # remove previous transient lines (turn indicator, count) but keep dividers
+        removed = 0
+        while removed < 3 and len(play_display) > 2:
+            stripped = ANSI_PATTERN.sub('', play_display[-1])
+            if stripped.startswith('>>') or stripped.startswith('count'):
+                del play_display[-1]
+                removed += 1
+            elif stripped.startswith('- '):
+                break  # stop at divider — it's a permanent separator
+            else:
                 break
 
         #the play display is a table with players as columns and successive plays as rows
@@ -328,7 +331,9 @@ class CribInterface(Interface):
             last_row = play_display[-1]
             last_row_stripped = last_row.rstrip()
             play_display[-1] = last_row_stripped + YELLOW + ' +%s' % score + RESET
-            # No further positioning needed
+            # Add divider to mark end of sub-round
+            divider_width = CribInterface.COL_WIDTH * self.game.num_players
+            play_display.append('- ' * (divider_width // 2))
 
         if not is_last_card:
             # Calculate visual length (without ANSI codes) for padding
@@ -345,20 +350,26 @@ class CribInterface(Interface):
             else:
                 play_display[-1] += play_line
 
-        #add the count to the end
-        count_color = RED if count >= 25 else YELLOW
-        count_line = count_color + 'count: %s' % count + RESET
-        if count == 31:
-            count_line += '  ' + GREEN + '(31!)' + RESET
-        play_display.append(count_line)
+        if not is_last_card:
+            #add the count to the end
+            count_color = RED if count >= 25 else YELLOW
+            count_line = count_color + 'count: %s' % count + RESET
+            if count == 31:
+                count_line += '  ' + GREEN + '(31!)' + RESET
+            play_display.append(count_line)
 
-        # add turn indicator
-        next_player = play_order[(play_order.index(current_player) + 1) % len(play_order)]
-        turn_name = self.game.players[next_player].name
-        if next_player == 0:
-            play_display.append(GREEN + '>> Your turn' + RESET)
-        else:
-            play_display.append(CYAN + ">> %s's turn" % turn_name + RESET)
+            # Add divider after 31 to mark end of sub-round
+            if count == 31:
+                divider_width = CribInterface.COL_WIDTH * self.game.num_players
+                play_display.append('- ' * (divider_width // 2))
+
+            # add turn indicator
+            next_player = play_order[(play_order.index(current_player) + 1) % len(play_order)]
+            turn_name = self.game.players[next_player].name
+            if next_player == 0:
+                play_display.append(GREEN + '>> Your turn' + RESET)
+            else:
+                play_display.append(CYAN + ">> %s's turn" % turn_name + RESET)
 
         self.update_display(show_hand=True)
 
