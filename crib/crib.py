@@ -109,7 +109,7 @@ class AI_Player(Player):
 class Game:
     CARDS_PER_HAND = {2:6,3:5,4:5} # keys are number of players
 
-    def __init__(self, num_players, players, interf, crib_player=None):
+    def __init__(self, num_players, players, interf, crib_player=None, target_score=121):
 
         if num_players < 2 or num_players > 4:
             raise ValueError
@@ -119,6 +119,7 @@ class Game:
         self.num_players = num_players
         self.players = players
         self.round_number = 0
+        self.target_score = target_score
         self.score = [0 for _ in range(num_players)]
         self.interf = interf
 
@@ -136,7 +137,7 @@ class Game:
     def play(self):
         self.interf.start_game()
 
-        while max(self.score) < 121:
+        while max(self.score) < self.target_score:
             self.round_number += 1
             self.game_round = Round(self.num_players, self.players, self.crib_player, self.interf)
             self.logger.new_round(self.round_number, self.game_round.deal_cards())
@@ -146,7 +147,7 @@ class Game:
             self.logger.score_hands(self.game_round.score_hands())
             self.game_round.reset()
 
-            self.score = [min(121, self.score[i] + self.game_round.score[i]) for i in range(self.num_players)]
+            self.score = [min(self.target_score, self.score[i] + self.game_round.score[i]) for i in range(self.num_players)]
             self.crib_player = (self.crib_player + 1) % self.num_players
 
         winner = self.score.index(max(self.score))

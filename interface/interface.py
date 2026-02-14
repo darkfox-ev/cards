@@ -243,21 +243,32 @@ class CribInterface(Interface):
 
 
     def get_card_choice(self):
-        valid_choice = False
-        num_cards = self.game.players[0].hand.num_cards
-        error_msg = None
+        hand = self.game.players[0].hand
+        num_cards = hand.num_cards
+        current_count = self.game.game_round.count
 
-        while not valid_choice:
+        # Check if any card can be played
+        can_play = any(current_count + c.value <= 31 for c in hand.cards)
+
+        if not can_play:
+            # Auto-Go: no playable cards
+            self.update_display(show_hand=True)
+            self.print_line(YELLOW + 'No playable cards — Go!' + RESET)
+            self.get_input('Press ENTER to continue.')
+            return None
+
+        error_msg = None
+        while True:
             self.update_display(show_hand=True)
             if error_msg:
                 self.print_line(RED + error_msg + RESET)
             c = self.get_input(
-                'Choose card to play (1-%s) or press ENTER for a "Go".'
-                % num_cards)
+                'Choose card to play (1-%s).' % num_cards)
 
             c = c.strip()
             if c == '':
-                return None
+                error_msg = 'Enter a card number (1-%s).' % num_cards
+                continue
 
             try:
                 card_index = int(c) - 1
@@ -326,8 +337,10 @@ class CribInterface(Interface):
 
             #put it in the right position
             pos = play_order.index(current_player)
-            if pos == 0 or (card_played and count == card_played.value): #new line
-                left_pad = ' ' * (CribInterface.COL_WIDTH * pos)
+            col_start = CribInterface.COL_WIDTH * pos
+            last_row_vis_len = visible_len(play_display[-1])
+            if pos == 0 or (card_played and count == card_played.value) or last_row_vis_len > col_start:
+                left_pad = ' ' * col_start
                 play_display.append(left_pad + play_line)
             else:
                 play_display[-1] += play_line
