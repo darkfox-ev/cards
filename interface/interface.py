@@ -110,7 +110,7 @@ class CribInterface(Interface):
 
     def __init__(self):
         
-        Interface.__init__(self)
+        super().__init__()
 
 
     def welcome(self):
@@ -128,7 +128,7 @@ class CribInterface(Interface):
             self.current_display['your_hand'] = self.show_hand()
         else:
             self.current_display['your_hand'] = list()
-        Interface.update_display(self)
+        super().update_display()
 
 
     def create_header(self):
