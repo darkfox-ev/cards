@@ -6,7 +6,7 @@ class Card:
 
     VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K']
     SUITS = ['H','D','C','S']
-    SUIT_MAPPING = {'H':chr(3), 'D':chr(4), 'C':chr(5), 'S':chr(6)}
+    SUIT_MAPPING = {'H':'\u2665', 'D':'\u2666', 'C':'\u2663', 'S':'\u2660'}
 
     def __init__(self, suit = 'H', number = 1):
         self.suit = suit # one of [S,H,C,D]
