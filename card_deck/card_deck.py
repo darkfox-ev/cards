@@ -12,85 +12,69 @@ class Card:
         self.suit = suit # one of [S,H,C,D]
         self.number = number # ace = 1 through K = 13
         self.value = min(10,number)
-        
+
     def __str__(self):
-        
+
         return '{}{}{}'.format(
             '' if self.number == 10 else ' ',
             Card.VALUES[self.number-1],
             Card.SUIT_MAPPING[self.suit])
 
+    def __eq__(self, other):
+        if not isinstance(other, Card):
+            return NotImplemented
+        return self.suit == other.suit and self.number == other.number
+
+    def __hash__(self):
+        return hash((self.suit, self.number))
+
+
 class Deck:
 
     def __init__(self, num_cards=52):
-        self.cards = list()
-        self.num_cards = num_cards
+        self.cards = []
         self.max_cards = num_cards
 
-        value = 0
-        suit = 0
-        for i in range(self.max_cards):
-            self.cards.append(Card(Card.SUITS[suit], value + 1))
-            value = value + 1
-            if value > 12:
-                value = 0
-                suit = (suit + 1) % 4
+        for suit in Card.SUITS:
+            for number in range(1, 14):
+                if len(self.cards) < self.max_cards:
+                    self.cards.append(Card(suit, number))
+
+    @property
+    def num_cards(self):
+        return len(self.cards)
 
     def __str__(self):
-        out_str = ""
-        for i in range(self.num_cards):
-            out_str += str(self.cards[i]) + ' '
-        return out_str
+        return ' '.join(str(c) for c in self.cards) + (' ' if self.cards else '')
 
     def shuffle(self):
         random.shuffle(self.cards)
 
     def deal_card(self):
-        c = self.cards.pop(0)
-        self.num_cards -= 1
-        return c
+        return self.cards.pop(0)
 
     def cut_deck(self, return_card=False):
-        """ cuts card from random spot in deck. 
+        """ cuts card from random spot in deck.
         returns card.
         if return_card True, then also keeps card in deck """
 
-        i = random.randint(0,self.num_cards-1)
-        
+        i = random.randint(0, self.num_cards - 1)
+
         if return_card:
             return self.cards[i]
         else:
-            c = self.cards.pop(i)
-            self.num_cards -= 1
-            return c
+            return self.cards.pop(i)
 
     def remove_cards(self, cards_to_remove):
         """ removes list of cards from deck """
-        
-        for i in range(self.num_cards, 0, -1):
-            for c in cards_to_remove:
-                try:
-                    if self.cards[i-1].suit == c.suit and self.cards[i-1].number == c.number:
-                        self.cards.pop(i-1)
-                except IndexError:
-                    pass
-        self.num_cards = len(self.cards)
+        self.cards = [c for c in self.cards if c not in cards_to_remove]
         return self
-
 
     def remove_cards_inverse(self, cards_to_keep):
         """ removes cards not in list to keep
         returns list of cards removed """
-        cards_removed = []
-        for i in range(self.num_cards, 0, -1):
-            found = False
-            for c in cards_to_keep:
-                if c.suit == self.cards[i-1].suit and c.number == self.cards[i-1].number:
-                    found = True
-            if not found:
-                cards_removed.append(self.cards.pop(i-1))
-                self.num_cards -= 1    
-                
+        cards_removed = [c for c in self.cards if c not in cards_to_keep]
+        self.cards = [c for c in self.cards if c in cards_to_keep]
         return cards_removed
 
 
@@ -98,17 +82,12 @@ class Hand(Deck):
 
     def __init__(self):
         self.cards = []
-        self.num_cards = 0
 
     def receive_card(self, card):
         self.cards.append(card)
-        self.num_cards += 1
 
     def play_card(self, i):
-        self.num_cards -= 1
         return self.cards.pop(i)
 
     def reset(self):
         self.cards = []
-        self.num_cards = 0
-        
