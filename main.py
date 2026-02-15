@@ -1,9 +1,11 @@
 import sys
+from dotenv import load_dotenv
 from crib import crib
 from crib.ai_strategy import RandomStrategy, BasicStrategy, OptimizedStrategy, get_llm_strategies
 from interface import interface
 
 if __name__ == '__main__':
+    load_dotenv()
     target_score = int(sys.argv[1]) if len(sys.argv) > 1 else 121
 
     strategies = [RandomStrategy(), BasicStrategy(), OptimizedStrategy()]
