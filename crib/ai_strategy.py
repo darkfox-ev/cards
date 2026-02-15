@@ -1,5 +1,7 @@
 # AI Strategy module - defines different AI decision-making strategies
 
+import os
+import re
 import random
 import copy
 from itertools import combinations
@@ -98,17 +100,89 @@ class OptimizedStrategy(AIStrategy):
 
 class LLMStrategy(AIStrategy):
     """LLM-powered strategy using Anthropic API.
-    TODO: Implement API calls. Falls back to BasicStrategy for now."""
-    name = "AI-LLM"
-    description = "LLM-powered strategy (stub)"
+    Model is configurable via constructor parameter.
+    Falls back to BasicStrategy on any API or parsing error."""
 
-    def __init__(self):
+    SYSTEM_PROMPT = (
+        "You are an expert Cribbage player. In Cribbage:\n"
+        "- Card values: A=1, 2-9=face value, 10/J/Q/K=10\n"
+        "- Hand scoring: pairs (2pts), fifteens (2pts each combo summing to 15), "
+        "runs of 3+ (1pt per card), flush (4+ same suit), his nob (J of turn suit)\n"
+        "- Play phase: players alternate playing cards, running count must not exceed 31. "
+        "Reaching exactly 15 or 31 scores 2pts. Pairs/runs in sequence score points.\n"
+        "Respond ONLY with the requested card number(s), nothing else."
+    )
+
+    def __init__(self, model="claude-haiku-4-5-20251001"):
+        import anthropic
+        api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+        self.client = anthropic.Anthropic(api_key=api_key)
+        self.model = model
         self._fallback = BasicStrategy()
+        # Derive display name from model string
+        model_short = model.split("-")[1].capitalize() if "-" in model else model
+        self.name = f"AI-LLM-{model_short}"
+        self.description = f"LLM strategy ({model})"
+
+    @staticmethod
+    def _format_cards(hand):
+        """Format hand cards as a numbered list for the LLM."""
+        return ", ".join(
+            f"{i}: {card_deck.Card.VALUES[c.number-1]}{c.suit}"
+            for i, c in enumerate(hand.cards)
+        )
+
+    def _ask(self, user_prompt):
+        """Send a prompt to the LLM and return the response text."""
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=50,
+            system=self.SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        return response.content[0].text.strip()
 
     def choose_crib_cards(self, hand, num_crib_cards):
-        # TODO: Call Anthropic API with hand state
+        try:
+            cards_str = self._format_cards(hand)
+            prompt = (
+                f"Your hand: [{cards_str}]\n"
+                f"Choose {num_crib_cards} card(s) to discard to the crib.\n"
+                f"Reply with ONLY the card indices (0-{hand.num_cards - 1}) "
+                f"separated by commas. Example: 0,3"
+            )
+            text = self._ask(prompt)
+            indices = [int(x.strip()) for x in re.findall(r'\d+', text)]
+            # Validate indices
+            if (len(indices) == num_crib_cards
+                    and all(0 <= i < hand.num_cards for i in indices)
+                    and len(set(indices)) == num_crib_cards):
+                return indices
+        except Exception:
+            pass
         return self._fallback.choose_crib_cards(hand, num_crib_cards)
 
     def choose_play_card(self, hand, current_count):
-        # TODO: Call Anthropic API with play state
+        try:
+            cards_str = self._format_cards(hand)
+            valid = [i for i in range(hand.num_cards)
+                     if current_count + hand.cards[i].value <= 31]
+            if not valid:
+                return None
+            prompt = (
+                f"Your hand: [{cards_str}]\n"
+                f"Current count: {current_count}\n"
+                f"Valid card indices (count won't exceed 31): {valid}\n"
+                f"Choose ONE card index to play. Reply with ONLY the index number."
+            )
+            text = self._ask(prompt)
+            numbers = re.findall(r'\d+', text)
+            if numbers:
+                idx = int(numbers[0])
+                if idx in valid:
+                    return idx
+        except Exception:
+            pass
         return self._fallback.choose_play_card(hand, current_count)
