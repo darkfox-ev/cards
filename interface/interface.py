@@ -1,6 +1,10 @@
 import sys, os, re, colorama, time, random
 from collections import OrderedDict
 
+
+class GameQuitException(Exception):
+    pass
+
 COLORS = {'black':0, 'red':1, 'green':2, 'yellow':3, 'blue':4, 'magenta':5, 'cyan':6, 'white':7}
 
 # ANSI escape codes for inline coloring
@@ -28,7 +32,10 @@ class Terminal:
     def __init__(self):
         colorama.init(autoreset=True)
         self.current_row = 1
-        self.width, self.height = os.get_terminal_size()
+        try:
+            self.width, self.height = os.get_terminal_size()
+        except OSError:
+            self.width, self.height = 80, 24
 
 
     def clear_screen(self):
@@ -49,10 +56,13 @@ class Terminal:
 
     def get_input(self, msg):
 
-        self.text_blit(msg, x=1, y=self.height - 1)
+        self.text_blit(msg + '  (q to quit)', x=1, y=self.height - 1)
         self.text_blit(">>> ", x=1, y=self.height)
 
         msg_response = input()
+
+        if msg_response.strip().lower() in ('q', 'quit'):
+            raise GameQuitException()
 
         return msg_response
 
@@ -78,10 +88,20 @@ class Interface:
 
 
     def update_display(self):
+        self.terminal.width, self.terminal.height = os.get_terminal_size()
         self.terminal.clear_screen()
+
+        # Collect all lines and trim if they exceed terminal height
+        all_lines = []
         for v in self.current_display.values():
-            for l in v:
-                self.print_line(l)
+            all_lines.extend(v)
+
+        max_lines = self.terminal.height - 3  # reserve space for input area
+        if len(all_lines) > max_lines:
+            all_lines = all_lines[-max_lines:]
+
+        for l in all_lines:
+            self.print_line(l)
 
 
     def set_game(self, g):
@@ -119,6 +139,9 @@ class Interface:
         pass
 
     def show_round_score(self):
+        pass
+
+    def end_play(self):
         pass
 
 class CribInterface(Interface):
@@ -196,6 +219,7 @@ class CribInterface(Interface):
 
     def show_hand(self):
         hand = self.game.players[0].hand
+        hand.sort()
         num_cards = hand.num_cards
         colorized = self.colorize_card_str(hand.cards)
         prefix = 'Your hand (%s cards): ' % num_cards

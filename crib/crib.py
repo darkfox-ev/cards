@@ -1,9 +1,10 @@
 # Crib module
 
-import random
+import random, time
 from card_deck import card_deck
 from logger import logger
 from interface import interface
+from interface.interface import GameQuitException
 from itertools import combinations
 import copy
 
@@ -78,6 +79,7 @@ class AI_Player(Player):
 
 
     def select_crib_cards(self, num_crib_cards):
+        time.sleep(random.uniform(0.5, 1.0))
         cards = []
 
         # create temp deck with all cards not in hand
@@ -99,6 +101,7 @@ class AI_Player(Player):
 
 
     def play_card(self, current_count):
+        time.sleep(random.uniform(0.3, 0.7))
         # play first one that fits
         for i in range(self.hand.num_cards, 0, -1):
             if current_count + self.hand.cards[i-1].value <= 31:
@@ -137,22 +140,25 @@ class Game:
     def play(self):
         self.interf.start_game()
 
-        while max(self.score) < self.target_score:
-            self.round_number += 1
-            self.game_round = Round(self.num_players, self.players, self.crib_player, self.interf)
-            self.logger.new_round(self.round_number, self.game_round.deal_cards())
-            self.logger.crib(self.game_round.establish_crib())
-            self.logger.turn_up(self.game_round.establish_turn_up())
-            self.logger.the_play(self.game_round.play())
-            self.logger.score_hands(self.game_round.score_hands())
-            self.game_round.reset()
+        try:
+            while max(self.score) < self.target_score:
+                self.round_number += 1
+                self.game_round = Round(self.num_players, self.players, self.crib_player, self.interf)
+                self.logger.new_round(self.round_number, self.game_round.deal_cards())
+                self.logger.crib(self.game_round.establish_crib())
+                self.logger.turn_up(self.game_round.establish_turn_up())
+                self.logger.the_play(self.game_round.play())
+                self.logger.score_hands(self.game_round.score_hands())
+                self.game_round.reset()
 
-            self.score = [min(self.target_score, self.score[i] + self.game_round.score[i]) for i in range(self.num_players)]
-            self.crib_player = (self.crib_player + 1) % self.num_players
+                self.score = [min(self.target_score, self.score[i] + self.game_round.score[i]) for i in range(self.num_players)]
+                self.crib_player = (self.crib_player + 1) % self.num_players
 
-        winner = self.score.index(max(self.score))
-        self.interf.display_winner(winner)
-        self.logger.record_winner(winner)
+            winner = self.score.index(max(self.score))
+            self.interf.display_winner(winner)
+            self.logger.record_winner(winner)
+        except GameQuitException:
+            print('\nGame ended. Thanks for playing!')
 
 
 class Round:
