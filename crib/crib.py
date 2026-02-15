@@ -6,7 +6,6 @@ from logger import logger
 from interface import interface
 from interface.interface import GameQuitException
 from itertools import combinations
-import copy
 
 
 class Player:
@@ -71,41 +70,24 @@ class Test_Player(Player):
 
 
 class AI_Player(Player):
-    AI_VER = 1.0
 
-
-    def __init__(self):
-        super().__init__('AI%s' % str(AI_Player.AI_VER))
-
+    def __init__(self, strategy=None):
+        if strategy is None:
+            from crib.ai_strategy import OptimizedStrategy
+            strategy = OptimizedStrategy()
+        self.strategy = strategy
+        super().__init__(strategy.name)
 
     def select_crib_cards(self, num_crib_cards):
         time.sleep(random.uniform(0.5, 1.0))
-        cards = []
-
-        # create temp deck with all cards not in hand
-        temp_deck = card_deck.Deck(52).remove_cards(self.hand.cards)
-
-        best_combo = None
-        best_points = -1
-
-        # find combo that has the highest potential score
-        for combo in combinations(self.hand.cards, self.hand.num_cards - num_crib_cards):
-            points = 0
-            for card in temp_deck.cards:
-                points += count_hand(combo, card)
-            if points > best_points:
-                best_combo = copy.deepcopy(combo)
-                best_points = points
-
-        return self.hand.remove_cards_inverse(best_combo)
-
+        card_indices = self.strategy.choose_crib_cards(self.hand, num_crib_cards)
+        return super().select_crib_cards(num_crib_cards, card_indices)
 
     def play_card(self, current_count):
         time.sleep(random.uniform(0.3, 0.7))
-        # play first one that fits
-        for i in range(self.hand.num_cards, 0, -1):
-            if current_count + self.hand.cards[i-1].value <= 31:
-                return self.hand.play_card(i-1)
+        idx = self.strategy.choose_play_card(self.hand, current_count)
+        if idx is not None:
+            return self.hand.play_card(idx)
         return None
 
 
