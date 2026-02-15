@@ -17,13 +17,16 @@ if __name__ == '__main__':
             pass  # SDK import or init failed, skip LLM strategies
 
     interf = interface.CribInterface()
-    player_name = interf.welcome()
-    strategy = interf.choose_ai(strategies)
+    try:
+        player_name = interf.welcome()
+        strategy = interf.choose_ai(strategies)
 
-    p1 = crib.HumanPlayer(player_name, interf)
-    p2 = crib.AI_Player(strategy)
+        p1 = crib.HumanPlayer(player_name, interf)
+        p2 = crib.AI_Player(strategy)
 
-    g = crib.Game(2, [p1, p2], interf, target_score=target_score)
-    interf.set_game(g)
+        g = crib.Game(2, [p1, p2], interf, target_score=target_score)
+        interf.set_game(g)
 
-    g.play()
+        g.play()
+    except interface.GameQuitException:
+        pass
