@@ -331,7 +331,7 @@ def count_hand(hand, turn_up):
 
     score = 0
 
-    # count the fifteens, pairs and runs
+    # count the fifteens and pairs
     for i in range(2,len(all_cards)+1):
         for combo in combinations(all_cards,i):
             # count the fifteens
@@ -347,18 +347,16 @@ def count_hand(hand, turn_up):
                 if combo[0].number == combo[1].number:
                     score += 2
 
-            #if a 3 combo or more, check for run, if 4 or 5 combo remove previous run score
-            if i >= 3:
-                numbers = sorted([c.number for c in combo])
-
-                if numbers == list(range(min(numbers),max(numbers)+1)):
-                    score += i
-
-                    if i == 4:
-                        score -= 6 # two 3 card runs would have been found already
-
-                    if i == 5:
-                        score -= 5 # two 4 card runs would have been found already
+    # count runs: find longest run length, then count all combos of that length
+    for run_len in range(len(all_cards), 2, -1):
+        run_score = 0
+        for combo in combinations(all_cards, run_len):
+            numbers = sorted([c.number for c in combo])
+            if numbers == list(range(min(numbers), max(numbers)+1)):
+                run_score += run_len
+        if run_score > 0:
+            score += run_score
+            break
 
 
 
