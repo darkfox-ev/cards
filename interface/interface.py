@@ -141,7 +141,10 @@ class Interface:
     def display_winner(self, winner):
         pass
 
-    def show_round_score(self):
+    def end_play(self):
+        pass
+
+    def show_round_score(self, hand_score, crib_score):
         pass
 
     def end_play(self):
