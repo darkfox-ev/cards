@@ -114,6 +114,9 @@ class Interface:
     def welcome(self):
         pass
 
+    def choose_ai(self, strategies):
+        return strategies[0]
+
     def create_header(self):
         pass
 
@@ -141,7 +144,10 @@ class Interface:
     def display_winner(self, winner):
         pass
 
-    def show_round_score(self):
+    def end_play(self):
+        pass
+
+    def show_round_score(self, hand_score, crib_score):
         pass
 
     def end_play(self):
@@ -178,6 +184,23 @@ class CribInterface(Interface):
         self.print_line(CYAN + '*  ver 0.1                          *' + RESET, True)
         self.print_line(CYAN + '*************************************' + RESET, True)
         return self.get_input('Enter player name: ')
+
+
+    def choose_ai(self, strategies):
+        self.print_line('')
+        self.print_line('Choose your opponent:')
+        for i, s in enumerate(strategies):
+            self.print_line('  %s%d%s - %s (%s)' % (BOLD, i+1, RESET, s.name, s.description))
+        valid = False
+        while not valid:
+            choice = self.get_input('Enter choice (1-%d): ' % len(strategies))
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(strategies):
+                    valid = True
+            except ValueError:
+                pass
+        return strategies[idx]
 
 
     def update_display(self, show_hand=False):
