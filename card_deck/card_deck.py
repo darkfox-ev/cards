@@ -89,5 +89,8 @@ class Hand(Deck):
     def play_card(self, i):
         return self.cards.pop(i)
 
+    def sort(self):
+        self.cards.sort(key=lambda c: (Card.SUITS.index(c.suit), c.number))
+
     def reset(self):
         self.cards = []
