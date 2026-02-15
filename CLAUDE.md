@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-A Python 3 command-line Cribbage card game with human and AI players. Uses ANSI terminal escape codes (via `colorama`) for the CLI interface.
-
 ## Commands
 
 **Run the game:**
@@ -15,8 +11,7 @@ python3 main.py
 
 **Run tests:**
 ```bash
-python3 -m unittest tests.card_deck_tests -v
-python3 -m unittest tests.round_tests -v
+python3 -m unittest tests.card_deck_tests tests.round_tests tests.ai_strategy_tests -v
 ```
 
 ## Architecture
