@@ -98,6 +98,27 @@ class OptimizedStrategy(AIStrategy):
         return None
 
 
+def get_llm_strategies():
+    """Fetch available models from Anthropic API and return LLMStrategy instances.
+    Returns (strategies, error_message) tuple. On failure, strategies is empty
+    and error_message describes the problem."""
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return [], "ANTHROPIC_API_KEY environment variable not set. LLM opponents disabled."
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.models.list(limit=100)
+        strategies = []
+        for model in response.data:
+            strategies.append(LLMStrategy(model.id, model.display_name, client))
+        if not strategies:
+            return [], "No models available from Anthropic API."
+        return strategies, None
+    except Exception as e:
+        return [], f"Could not initialize Anthropic API: {e}"
+
+
 class LLMStrategy(AIStrategy):
     """LLM-powered strategy using Anthropic API.
     Model is configurable via constructor parameter.
@@ -113,18 +134,19 @@ class LLMStrategy(AIStrategy):
         "Respond ONLY with the requested card number(s), nothing else."
     )
 
-    def __init__(self, model="claude-haiku-4-5-20251001"):
-        import anthropic
-        api_key = os.environ.get('ANTHROPIC_API_KEY')
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-        self.client = anthropic.Anthropic(api_key=api_key)
-        self.model = model
+    def __init__(self, model_id, display_name=None, client=None):
+        self.model = model_id
         self._fallback = BasicStrategy()
-        # Derive display name from model string
-        model_short = model.split("-")[1].capitalize() if "-" in model else model
-        self.name = f"AI-LLM-{model_short}"
-        self.description = f"LLM strategy ({model})"
+        if client is not None:
+            self.client = client
+        else:
+            import anthropic
+            api_key = os.environ.get('ANTHROPIC_API_KEY')
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+            self.client = anthropic.Anthropic(api_key=api_key)
+        self.name = f"AI-LLM ({display_name or model_id})"
+        self.description = model_id
 
     @staticmethod
     def _format_cards(hand):

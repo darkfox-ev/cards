@@ -1,7 +1,6 @@
-import os
 import sys
 from crib import crib
-from crib.ai_strategy import RandomStrategy, BasicStrategy, OptimizedStrategy, LLMStrategy
+from crib.ai_strategy import RandomStrategy, BasicStrategy, OptimizedStrategy, get_llm_strategies
 from interface import interface
 
 if __name__ == '__main__':
@@ -9,16 +8,14 @@ if __name__ == '__main__':
 
     strategies = [RandomStrategy(), BasicStrategy(), OptimizedStrategy()]
 
-    if os.environ.get('ANTHROPIC_API_KEY'):
-        try:
-            strategies.append(LLMStrategy("claude-haiku-4-5-20251001"))
-            strategies.append(LLMStrategy("claude-sonnet-4-5-20250929"))
-        except Exception:
-            pass  # SDK import or init failed, skip LLM strategies
+    llm_strategies, llm_error = get_llm_strategies()
+    strategies.extend(llm_strategies)
 
     interf = interface.CribInterface()
     try:
         player_name = interf.welcome()
+        if llm_error:
+            interf.print_line(llm_error)
         strategy = interf.choose_ai(strategies)
 
         p1 = crib.HumanPlayer(player_name, interf)
