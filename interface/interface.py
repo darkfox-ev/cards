@@ -56,7 +56,10 @@ class Terminal:
 
     def get_input(self, msg):
 
-        self.text_blit(msg + '  (q to quit)', x=1, y=self.height - 1)
+        hint = '  (q to quit)'
+        if len(msg) + len(hint) <= self.width:
+            msg += hint
+        self.text_blit(msg, x=1, y=self.height - 1)
         self.text_blit(">>> ", x=1, y=self.height)
 
         msg_response = input()
