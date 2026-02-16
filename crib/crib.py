@@ -71,20 +71,23 @@ class Test_Player(Player):
 
 class AI_Player(Player):
 
-    def __init__(self, strategy=None):
+    def __init__(self, strategy=None, simulate=False):
         if strategy is None:
             from crib.ai_strategy import OptimizedStrategy
             strategy = OptimizedStrategy()
         self.strategy = strategy
+        self.simulate = simulate
         super().__init__(strategy.name)
 
     def select_crib_cards(self, num_crib_cards):
-        time.sleep(random.uniform(0.5, 1.0))
+        if not self.simulate:
+            time.sleep(random.uniform(0.5, 1.0))
         card_indices = self.strategy.choose_crib_cards(self.hand, num_crib_cards)
         return super().select_crib_cards(num_crib_cards, card_indices)
 
     def play_card(self, current_count):
-        time.sleep(random.uniform(0.3, 0.7))
+        if not self.simulate:
+            time.sleep(random.uniform(0.3, 0.7))
         idx = self.strategy.choose_play_card(self.hand, current_count)
         if idx is not None:
             return self.hand.play_card(idx)
@@ -94,7 +97,7 @@ class AI_Player(Player):
 class Game:
     CARDS_PER_HAND = {2:6,3:5,4:5} # keys are number of players
 
-    def __init__(self, num_players, players, interf, crib_player=None, target_score=121):
+    def __init__(self, num_players, players, interf, crib_player=None, target_score=121, simulation_id=None):
 
         if num_players < 2 or num_players > 4:
             raise ValueError
@@ -115,7 +118,7 @@ class Game:
         else:
             self.crib_player = crib_player
 
-        self.logger = logger.Logger(self)
+        self.logger = logger.Logger(self, simulation_id=simulation_id)
 
 
     def play(self):

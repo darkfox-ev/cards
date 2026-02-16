@@ -150,7 +150,16 @@ class Interface:
     def show_round_score(self, hand_score, crib_score):
         pass
 
-    def end_play(self):
+    def choose_mode(self):
+        return 'play'
+
+    def setup_simulation(self, strategies):
+        return {}
+
+    def show_simulation_progress(self, game_num, total, results):
+        pass
+
+    def show_simulation_results(self, results):
         pass
 
 class CribInterface(Interface):
@@ -487,3 +496,100 @@ class CribInterface(Interface):
         self.print_line('')
         self.print_line(BOLD + GREEN + '%s wins!' % self.game.players[winner].name + RESET)
         self.get_input('Press <ENTER> to continue')
+
+    def choose_mode(self):
+        self.print_line('')
+        self.print_line('Choose mode:')
+        self.print_line('  %s1%s - Play a game' % (BOLD, RESET))
+        self.print_line('  %s2%s - Run AI simulation' % (BOLD, RESET))
+        while True:
+            choice = self.get_input('Enter choice (1-2): ').strip()
+            if choice == '1':
+                return 'play'
+            elif choice == '2':
+                return 'simulate'
+
+    def setup_simulation(self, strategies):
+        self.terminal.clear_screen()
+        self.print_line(CYAN + '--- AI Simulation Setup ---' + RESET)
+        self.print_line('')
+
+        # Choose player 1 strategy
+        self.print_line('Available strategies:')
+        for i, s in enumerate(strategies):
+            self.print_line('  %s%d%s - %s (%s)' % (BOLD, i+1, RESET, s.name, s.description))
+
+        def pick_strategy(label):
+            while True:
+                choice = self.get_input('%s strategy (1-%d): ' % (label, len(strategies))).strip()
+                try:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(strategies):
+                        return strategies[idx]
+                except ValueError:
+                    pass
+
+        p1_strategy = pick_strategy('Player 1')
+        p2_strategy = pick_strategy('Player 2')
+
+        # Number of games
+        while True:
+            n = self.get_input('Number of games: ').strip()
+            try:
+                num_games = int(n)
+                if num_games > 0:
+                    break
+            except ValueError:
+                pass
+
+        # Simulation name
+        name = self.get_input('Simulation name: ').strip()
+        if not name:
+            name = '%s vs %s' % (p1_strategy.name, p2_strategy.name)
+
+        # Description (optional)
+        description = self.get_input('Description (optional): ').strip() or None
+
+        # Target score
+        ts = self.get_input('Target score (default 121): ').strip()
+        try:
+            target_score = int(ts)
+        except ValueError:
+            target_score = 121
+
+        return {
+            'p1_strategy': p1_strategy,
+            'p2_strategy': p2_strategy,
+            'num_games': num_games,
+            'name': name,
+            'description': description,
+            'target_score': target_score,
+        }
+
+    def show_simulation_progress(self, game_num, total, results):
+        p1_wins = results.get('p1_wins', 0)
+        p2_wins = results.get('p2_wins', 0)
+        p1_name = results.get('p1_name', 'P1')
+        p2_name = results.get('p2_name', 'P2')
+        print('  Game %d/%d: %s %d - %s %d' % (game_num, total, p1_name, p1_wins, p2_name, p2_wins))
+
+    def show_simulation_results(self, results):
+        p1_name = results.get('p1_name', 'P1')
+        p2_name = results.get('p2_name', 'P2')
+        p1_wins = results.get('p1_wins', 0)
+        p2_wins = results.get('p2_wins', 0)
+        total = results.get('total', 0)
+
+        self.terminal.clear_screen()
+        self.print_line('')
+        self.print_line(BOLD + CYAN + '=== Simulation Results ===' + RESET)
+        self.print_line('')
+        self.print_line('  %s%s%s: %s%d%s wins (%.1f%%)' % (
+            CYAN, p1_name, RESET, YELLOW, p1_wins, RESET,
+            (p1_wins / total * 100) if total else 0))
+        self.print_line('  %s%s%s: %s%d%s wins (%.1f%%)' % (
+            CYAN, p2_name, RESET, YELLOW, p2_wins, RESET,
+            (p2_wins / total * 100) if total else 0))
+        self.print_line('')
+        self.print_line('  Total games: %d' % total)
+        self.print_line('')

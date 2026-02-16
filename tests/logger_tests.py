@@ -4,7 +4,7 @@ import json
 from card_deck.card_deck import Card, Hand
 from crib.crib import Test_Player, Game, Round
 from interface.interface import Interface
-from logger.logger import Logger, card_to_str, cards_to_json
+from logger.logger import Logger, card_to_str, cards_to_json, create_simulation, complete_simulation
 
 
 class CardEncodingTests(unittest.TestCase):
@@ -196,6 +196,7 @@ class LoggerTests(unittest.TestCase):
             'idx_rounds_game',
             'idx_round_hands_round',
             'idx_plays_round',
+            'idx_games_simulation',
         }
         self.assertEqual(expected, index_names)
         game.logger.close()
@@ -240,6 +241,83 @@ class LoggerTests(unittest.TestCase):
         self.assertEqual(row[0], 'in_progress')
 
         game.logger.close()
+
+
+class SimulationTests(unittest.TestCase):
+
+    def test_create_simulation(self):
+        """Verify create_simulation inserts a row with correct fields."""
+        conn, sim_id = create_simulation(
+            ':memory:', 'Test Sim', 'A test simulation',
+            10, 'Random', 'Basic', 121
+        )
+        row = conn.execute("SELECT * FROM simulations WHERE id = ?", (sim_id,)).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row[1], 'Test Sim')       # name
+        self.assertEqual(row[2], 'A test simulation')  # description
+        self.assertEqual(row[3], 10)                # num_games
+        self.assertEqual(row[4], 'Random')          # player1_strategy
+        self.assertEqual(row[5], 'Basic')           # player2_strategy
+        self.assertEqual(row[6], 121)               # target_score
+        self.assertIsNotNone(row[7])                # start_time
+        self.assertIsNone(row[8])                   # end_time (not yet completed)
+        conn.close()
+
+    def test_game_linked_to_simulation(self):
+        """Verify games created with simulation_id link correctly."""
+        conn, sim_id = create_simulation(
+            ':memory:', 'Link Test', None, 5, 'Opt', 'Opt', 121
+        )
+        db_path = ':memory:'
+        # We need to use the same connection, so use file-based temp db
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+            db_path = f.name
+        conn.close()
+
+        conn2, sim_id = create_simulation(
+            db_path, 'Link Test', None, 5, 'Opt', 'Opt', 121
+        )
+        conn2.close()
+
+        p1 = Test_Player([])
+        p2 = Test_Player([])
+        interf = Interface()
+        game = Game(2, [p1, p2], interf, crib_player=0, target_score=500)
+        game.logger.close()
+        game.logger = Logger(game, db_path=db_path, simulation_id=sim_id)
+        lg = game.logger
+
+        row = lg.conn.execute(
+            "SELECT simulation_id FROM games WHERE id = ?", (lg.game_id,)
+        ).fetchone()
+        self.assertEqual(row[0], sim_id)
+
+        lg.close()
+        os.unlink(db_path)
+
+    def test_complete_simulation(self):
+        """Verify complete_simulation sets end_time."""
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+            db_path = f.name
+
+        conn, sim_id = create_simulation(
+            db_path, 'Complete Test', None, 3, 'R', 'B', 121
+        )
+        conn.close()
+
+        import sqlite3
+        conn2 = sqlite3.connect(db_path)
+        complete_simulation(conn2, sim_id)
+
+        conn3 = sqlite3.connect(db_path)
+        row = conn3.execute(
+            "SELECT end_time FROM simulations WHERE id = ?", (sim_id,)
+        ).fetchone()
+        self.assertIsNotNone(row[0])
+        conn3.close()
+        os.unlink(db_path)
 
 
 if __name__ == '__main__':

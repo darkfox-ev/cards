@@ -15,13 +15,26 @@ def cards_to_json(cards):
 
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS simulations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    num_games INTEGER NOT NULL,
+    player1_strategy TEXT NOT NULL,
+    player2_strategy TEXT NOT NULL,
+    target_score INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT
+);
+
 CREATE TABLE IF NOT EXISTS games (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     start_time TEXT NOT NULL,
     end_time TEXT,
     num_players INTEGER NOT NULL,
     target_score INTEGER NOT NULL,
-    completion TEXT NOT NULL DEFAULT 'in_progress'
+    completion TEXT NOT NULL DEFAULT 'in_progress',
+    simulation_id INTEGER REFERENCES simulations(id)
 );
 
 CREATE TABLE IF NOT EXISTS game_players (
@@ -73,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_game_players_strategy ON game_players(strategy_na
 CREATE INDEX IF NOT EXISTS idx_rounds_game ON rounds(game_id);
 CREATE INDEX IF NOT EXISTS idx_round_hands_round ON round_hands(round_id);
 CREATE INDEX IF NOT EXISTS idx_plays_round ON plays(round_id);
+CREATE INDEX IF NOT EXISTS idx_games_simulation ON games(simulation_id);
 """
 
 
@@ -87,17 +101,38 @@ def _player_type(player):
     return type_map.get(cls, cls)
 
 
+def _migrate(conn):
+    """Add columns that may be missing from older databases."""
+    # Check if games table exists at all
+    exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='games'"
+    ).fetchone()
+    if not exists:
+        return
+    try:
+        conn.execute("SELECT simulation_id FROM games LIMIT 0")
+    except sqlite3.OperationalError:
+        conn.execute("ALTER TABLE games ADD COLUMN simulation_id INTEGER REFERENCES simulations(id)")
+        conn.commit()
+
+
+def _init_db(conn):
+    """Initialize schema and run migrations."""
+    _migrate(conn)
+    conn.executescript(SCHEMA)
+
+
 class Logger:
-    def __init__(self, game, db_path='cribbage_log.db'):
+    def __init__(self, game, db_path='cribbage_log.db', simulation_id=None):
         self.game = game
         self.conn = sqlite3.connect(db_path)
         self.conn.execute("PRAGMA journal_mode=WAL")
-        self.conn.executescript(SCHEMA)
+        _init_db(self.conn)
 
         # Insert game row
         cur = self.conn.execute(
-            "INSERT INTO games (start_time, num_players, target_score) VALUES (?, ?, ?)",
-            (datetime.now().isoformat(), game.num_players, game.target_score)
+            "INSERT INTO games (start_time, num_players, target_score, simulation_id) VALUES (?, ?, ?, ?)",
+            (datetime.now().isoformat(), game.num_players, game.target_score, simulation_id)
         )
         self.game_id = cur.lastrowid
 
@@ -243,3 +278,27 @@ class Logger:
         if self.conn:
             self.conn.close()
             self.conn = None
+
+
+def create_simulation(db_path, name, description, num_games, p1_strategy, p2_strategy, target_score):
+    """Create a simulation record and return (conn, simulation_id)."""
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    _init_db(conn)
+    cur = conn.execute(
+        "INSERT INTO simulations (name, description, num_games, player1_strategy, player2_strategy, target_score, start_time) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (name, description, num_games, p1_strategy, p2_strategy, target_score, datetime.now().isoformat())
+    )
+    conn.commit()
+    return conn, cur.lastrowid
+
+
+def complete_simulation(conn, simulation_id):
+    """Set end_time on a simulation and close the connection."""
+    conn.execute(
+        "UPDATE simulations SET end_time = ? WHERE id = ?",
+        (datetime.now().isoformat(), simulation_id)
+    )
+    conn.commit()
+    conn.close()
