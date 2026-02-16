@@ -4,8 +4,11 @@ import os
 import re
 import random
 import copy
+import logging
 from itertools import combinations
 from card_deck import card_deck
+
+llm_logger = logging.getLogger('cribbage.llm')
 
 
 class AIStrategy:
@@ -158,13 +161,16 @@ class LLMStrategy(AIStrategy):
 
     def _ask(self, user_prompt):
         """Send a prompt to the LLM and return the response text."""
+        llm_logger.info("REQUEST [%s]: %s", self.model, user_prompt)
         response = self.client.messages.create(
             model=self.model,
             max_tokens=50,
             system=self.SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )
-        return response.content[0].text.strip()
+        text = response.content[0].text.strip()
+        llm_logger.info("RESPONSE [%s]: %s", self.model, text)
+        return text
 
     def choose_crib_cards(self, hand, num_crib_cards):
         try:
