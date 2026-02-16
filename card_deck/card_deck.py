@@ -5,7 +5,7 @@ import random
 class Card:
 
     VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K']
-    SUITS = ['H','D','C','S']
+    SUITS = ['H','S','D','C']
     SUIT_MAPPING = {'H':'\u2665', 'D':'\u2666', 'C':'\u2663', 'S':'\u2660'}
 
     def __init__(self, suit = 'H', number = 1):
