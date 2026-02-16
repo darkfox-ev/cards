@@ -71,20 +71,23 @@ class Test_Player(Player):
 
 class AI_Player(Player):
 
-    def __init__(self, strategy=None):
+    def __init__(self, strategy=None, simulate=False):
         if strategy is None:
             from crib.ai_strategy import OptimizedStrategy
             strategy = OptimizedStrategy()
         self.strategy = strategy
+        self.simulate = simulate
         super().__init__(strategy.name)
 
     def select_crib_cards(self, num_crib_cards):
-        time.sleep(random.uniform(0.5, 1.0))
+        if not self.simulate:
+            time.sleep(random.uniform(0.5, 1.0))
         card_indices = self.strategy.choose_crib_cards(self.hand, num_crib_cards)
         return super().select_crib_cards(num_crib_cards, card_indices)
 
     def play_card(self, current_count):
-        time.sleep(random.uniform(0.3, 0.7))
+        if not self.simulate:
+            time.sleep(random.uniform(0.3, 0.7))
         idx = self.strategy.choose_play_card(self.hand, current_count)
         if idx is not None:
             return self.hand.play_card(idx)
@@ -94,7 +97,7 @@ class AI_Player(Player):
 class Game:
     CARDS_PER_HAND = {2:6,3:5,4:5} # keys are number of players
 
-    def __init__(self, num_players, players, interf, crib_player=None, target_score=121):
+    def __init__(self, num_players, players, interf, crib_player=None, target_score=121, simulation_id=None):
 
         if num_players < 2 or num_players > 4:
             raise ValueError
@@ -115,8 +118,7 @@ class Game:
         else:
             self.crib_player = crib_player
 
-        game_details = ''
-        self.logger = logger.Logger(game_details)
+        self.logger = logger.Logger(self, simulation_id=simulation_id)
 
 
     def play(self):
@@ -126,6 +128,7 @@ class Game:
             while max(self.score) < self.target_score:
                 self.round_number += 1
                 self.game_round = Round(self.num_players, self.players, self.crib_player, self.interf)
+                self.game_round.logger = self.logger
                 self.logger.new_round(self.round_number, self.game_round.deal_cards())
                 self.logger.crib(self.game_round.establish_crib())
                 self.logger.turn_up(self.game_round.establish_turn_up())
@@ -140,7 +143,10 @@ class Game:
             self.interf.display_winner(winner)
             self.logger.record_winner(winner)
         except GameQuitException:
+            self.logger.record_quit()
             print('\nGame ended. Thanks for playing!')
+        finally:
+            self.logger.close()
 
 
 class Round:
@@ -153,6 +159,8 @@ class Round:
         self.crib = card_deck.Hand()
         self.turn_up = None
         self.count = 0
+
+        self.logger = None
 
         if interf:
             self.interf = interf
@@ -275,19 +283,27 @@ class Round:
                     temp_score = self.score_played(card_played, played_cards)
                     self.score[who_played_last] += temp_score
                     self.interf.show_play(current_player, card_played, self.count, temp_score)
+                    if self.logger:
+                        self.logger.log_play(current_player, card_played, self.count, temp_score)
 
                 else:
                     gos[current_player] = True
                     self.interf.show_play(current_player, None, self.count, 0)
+                    if self.logger:
+                        self.logger.log_play(current_player, None, self.count, 0)
 
             if self.count == 31 or all(gos):
                 if all(gos):
                     self.score[who_played_last] += 1
                     self.interf.show_play(who_played_last, None, 0, 1)
+                    if self.logger:
+                        self.logger.log_play(who_played_last, None, 0, 1)
 
                 self.count = 0
                 gos = [False for _ in self.players]
                 played_cards.reset()
+                if self.logger:
+                    self.logger.new_sub_round()
 
             # check for end condition
             if all([p.hand.num_cards == 0 for p in self.players]):
@@ -295,6 +311,8 @@ class Round:
                     #the count will be zero if the last play was to 31
                     self.score[who_played_last] += 1
                     self.interf.show_play(who_played_last, None, 0, 1)
+                    if self.logger:
+                        self.logger.log_play(who_played_last, None, 0, 1)
                 self.interf.end_play()
                 playing = False
             else:
