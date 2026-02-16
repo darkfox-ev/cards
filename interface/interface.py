@@ -192,7 +192,6 @@ class CribInterface(Interface):
         self.print_line(CYAN + '*' + RESET + BOLD + '  WELCOME TO THE GAME OF CRIBBAGE  ' + RESET + CYAN + '*' + RESET, True)
         self.print_line(CYAN + '*  ver 0.1                          *' + RESET, True)
         self.print_line(CYAN + '*************************************' + RESET, True)
-        return self.get_input('Enter player name: ')
 
 
     def choose_ai(self, strategies):

@@ -17,13 +17,14 @@ if __name__ == '__main__':
 
     interf = interface.CribInterface()
     try:
-        player_name = interf.welcome()
+        interf.welcome()
         if llm_error:
             interf.print_line(llm_error)
 
         mode = interf.choose_mode()
 
         if mode == 'play':
+            player_name = interf.get_input('Enter player name: ')
             strategy = interf.choose_ai(strategies)
 
             p1 = crib.HumanPlayer(player_name, interf)
