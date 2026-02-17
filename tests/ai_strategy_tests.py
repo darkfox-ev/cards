@@ -199,6 +199,22 @@ class LLMStrategyTestCase(unittest.TestCase):
         expected = BasicStrategy().choose_crib_cards(hand, 2, is_my_crib=False)
         self.assertEqual(result, expected)
 
+    def test_explain_mode_modifies_prompt_and_max_tokens(self):
+        s = self._make_strategy()
+        s.explain = True
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text="0,3\nReason: These cards don't help the hand.")]
+        s.client.messages.create.return_value = mock_response
+
+        hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13)])
+        result = s.choose_crib_cards(hand, 2, is_my_crib=True)
+        self.assertEqual(result, [0, 3])
+
+        call_kwargs = s.client.messages.create.call_args[1]
+        self.assertEqual(call_kwargs['max_tokens'], 300)
+        prompt = call_kwargs['messages'][0]['content']
+        self.assertIn("Reason:", prompt)
+
     def test_choose_crib_cards_rejects_out_of_range(self):
         s = self._make_strategy()
         mock_response = MagicMock()

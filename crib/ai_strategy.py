@@ -151,6 +151,7 @@ class LLMStrategy(AIStrategy):
 
     def __init__(self, model_id, display_name=None, client=None):
         self.model = model_id
+        self.explain = False
         self._fallback = BasicStrategy()
         if client is not None:
             self.client = client
@@ -173,10 +174,14 @@ class LLMStrategy(AIStrategy):
 
     def _ask(self, user_prompt):
         """Send a prompt to the LLM and return the response text."""
+        max_tokens = 50
+        if self.explain:
+            user_prompt += "\nAfter your answer, briefly explain your reasoning on a new line starting with 'Reason:'."
+            max_tokens = 300
         llm_logger.info("REQUEST [%s]: %s", self.model, user_prompt)
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=50,
+            max_tokens=max_tokens,
             system=self.SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_prompt}],
         )

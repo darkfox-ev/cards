@@ -3,7 +3,7 @@ import sqlite3
 import logging
 from dotenv import load_dotenv
 from crib import crib
-from crib.ai_strategy import RandomStrategy, BasicStrategy, OptimizedStrategy, get_llm_strategies
+from crib.ai_strategy import RandomStrategy, BasicStrategy, OptimizedStrategy, LLMStrategy, get_llm_strategies
 from interface import interface
 from logger.logger import create_simulation, complete_simulation
 
@@ -34,6 +34,9 @@ if __name__ == '__main__':
         if mode == 'play':
             player_name = interf.get_input('Enter player name: ')
             strategy = interf.choose_ai(strategies)
+            if isinstance(strategy, LLMStrategy):
+                if interf.get_input('Enable LLM explanations? (y/n): ').strip().lower() == 'y':
+                    strategy.explain = True
 
             p1 = crib.HumanPlayer(player_name, interf)
             p2 = crib.AI_Player(strategy)
@@ -45,6 +48,12 @@ if __name__ == '__main__':
 
         elif mode == 'simulate':
             config = interf.setup_simulation(strategies)
+            llm_strats = [s for s in [config['p1_strategy'], config['p2_strategy']]
+                          if isinstance(s, LLMStrategy)]
+            if llm_strats:
+                if interf.get_input('Enable LLM explanations? (y/n): ').strip().lower() == 'y':
+                    for s in llm_strats:
+                        s.explain = True
             num_games = config['num_games']
             sim_target = config['target_score']
             p1_strategy = config['p1_strategy']
