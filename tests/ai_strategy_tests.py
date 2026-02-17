@@ -21,7 +21,7 @@ class RandomStrategyTestCase(unittest.TestCase):
         hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13),
                           Card('H', 7), Card('S', 3)])
         s = RandomStrategy()
-        result = s.choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=True)
         self.assertEqual(len(result), 2)
         self.assertTrue(all(0 <= i < 6 for i in result))
 
@@ -44,7 +44,7 @@ class BasicStrategyTestCase(unittest.TestCase):
     def test_choose_crib_cards_discards_lowest(self):
         hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13)])
         s = BasicStrategy()
-        result = s.choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=False)
         # Ace (1) and 5 are the lowest values
         self.assertIn(0, result)  # Ace
         self.assertIn(1, result)  # 5
@@ -71,7 +71,7 @@ class OptimizedStrategyTestCase(unittest.TestCase):
         hand = make_hand([Card('H', 5), Card('S', 10), Card('D', 1), Card('C', 2),
                           Card('H', 5), Card('S', 10)])
         s = OptimizedStrategy()
-        result = s.choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=True)
         self.assertEqual(len(result), 2)
         # All indices should be valid
         self.assertTrue(all(0 <= i < 6 for i in result))
@@ -127,7 +127,7 @@ class LLMStrategyTestCase(unittest.TestCase):
         s.client.messages.create.return_value = mock_response
 
         hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13)])
-        result = s.choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=True)
         self.assertEqual(result, [0, 3])
 
     def test_choose_crib_cards_fallback_on_bad_response(self):
@@ -137,9 +137,9 @@ class LLMStrategyTestCase(unittest.TestCase):
         s.client.messages.create.return_value = mock_response
 
         hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13)])
-        result = s.choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=False)
         # Should fall back to BasicStrategy (discards lowest values)
-        expected = BasicStrategy().choose_crib_cards(hand, 2)
+        expected = BasicStrategy().choose_crib_cards(hand, 2, is_my_crib=False)
         self.assertEqual(result, expected)
 
     def test_choose_crib_cards_fallback_on_api_error(self):
@@ -147,8 +147,8 @@ class LLMStrategyTestCase(unittest.TestCase):
         s.client.messages.create.side_effect = Exception("API error")
 
         hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13)])
-        result = s.choose_crib_cards(hand, 2)
-        expected = BasicStrategy().choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=False)
+        expected = BasicStrategy().choose_crib_cards(hand, 2, is_my_crib=False)
         self.assertEqual(result, expected)
 
     def test_choose_play_card_parses_llm_response(self):
@@ -194,9 +194,9 @@ class LLMStrategyTestCase(unittest.TestCase):
         s.client.messages.create.return_value = mock_response
 
         hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13)])
-        result = s.choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=False)
         # Duplicates rejected, falls back to BasicStrategy
-        expected = BasicStrategy().choose_crib_cards(hand, 2)
+        expected = BasicStrategy().choose_crib_cards(hand, 2, is_my_crib=False)
         self.assertEqual(result, expected)
 
     def test_choose_crib_cards_rejects_out_of_range(self):
@@ -206,8 +206,8 @@ class LLMStrategyTestCase(unittest.TestCase):
         s.client.messages.create.return_value = mock_response
 
         hand = make_hand([Card('H', 1), Card('S', 5), Card('D', 10), Card('C', 13)])
-        result = s.choose_crib_cards(hand, 2)
-        expected = BasicStrategy().choose_crib_cards(hand, 2)
+        result = s.choose_crib_cards(hand, 2, is_my_crib=False)
+        expected = BasicStrategy().choose_crib_cards(hand, 2, is_my_crib=False)
         self.assertEqual(result, expected)
 
 

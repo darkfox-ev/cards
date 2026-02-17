@@ -43,7 +43,7 @@ class HumanPlayer(Player):
             return c
 
 
-    def select_crib_cards(self, num_crib_cards):
+    def select_crib_cards(self, num_crib_cards, is_my_crib=False):
         crib_chosen = self.interf.select_crib_cards(num_crib_cards)
         return super().select_crib_cards(num_crib_cards, crib_chosen)
 
@@ -54,7 +54,7 @@ class Test_Player(Player):
         self.play_sequence = play_sequence
 
 
-    def select_crib_cards(self, num_crib_cards):
+    def select_crib_cards(self, num_crib_cards, is_my_crib=False):
         """ will choose the cards indicated next in the play sequence list """
         card_indices = [self.play_sequence.pop(0) for i in range(num_crib_cards)]
         return super().select_crib_cards(num_crib_cards, card_indices)
@@ -79,10 +79,10 @@ class AI_Player(Player):
         self.simulate = simulate
         super().__init__(strategy.name)
 
-    def select_crib_cards(self, num_crib_cards):
+    def select_crib_cards(self, num_crib_cards, is_my_crib=False):
         if not self.simulate:
             time.sleep(random.uniform(0.5, 1.0))
-        card_indices = self.strategy.choose_crib_cards(self.hand, num_crib_cards)
+        card_indices = self.strategy.choose_crib_cards(self.hand, num_crib_cards, is_my_crib)
         return super().select_crib_cards(num_crib_cards, card_indices)
 
     def play_card(self, current_count):
@@ -194,8 +194,8 @@ class Round:
         else:
             num_crib_cards = 1
 
-        for p in self.players:
-            crib_cards = p.select_crib_cards(num_crib_cards)
+        for i, p in enumerate(self.players):
+            crib_cards = p.select_crib_cards(num_crib_cards, is_my_crib=(i == self.crib_player))
             for c in crib_cards:
                 self.crib.receive_card(c)
 

@@ -16,7 +16,7 @@ class AIStrategy:
     name = "Base"
     description = "Base strategy"
 
-    def choose_crib_cards(self, hand, num_crib_cards):
+    def choose_crib_cards(self, hand, num_crib_cards, is_my_crib=False):
         """Return list of card indices to discard to crib."""
         raise NotImplementedError
 
@@ -30,7 +30,7 @@ class RandomStrategy(AIStrategy):
     name = "AI-Random"
     description = "Random card selection"
 
-    def choose_crib_cards(self, hand, num_crib_cards):
+    def choose_crib_cards(self, hand, num_crib_cards, is_my_crib=False):
         indices = list(range(hand.num_cards))
         return random.sample(indices, num_crib_cards)
 
@@ -47,7 +47,7 @@ class BasicStrategy(AIStrategy):
     name = "AI-Basic"
     description = "Simple heuristic strategy"
 
-    def choose_crib_cards(self, hand, num_crib_cards):
+    def choose_crib_cards(self, hand, num_crib_cards, is_my_crib=False):
         # Discard the lowest-value cards
         indexed = sorted(range(hand.num_cards), key=lambda i: hand.cards[i].value)
         return indexed[:num_crib_cards]
@@ -70,7 +70,7 @@ class OptimizedStrategy(AIStrategy):
     name = "AI-Opt"
     description = "Optimized exhaustive evaluation strategy"
 
-    def choose_crib_cards(self, hand, num_crib_cards):
+    def choose_crib_cards(self, hand, num_crib_cards, is_my_crib=False):
         from crib.crib import count_hand
 
         # Create temp deck with all cards not in hand
@@ -172,11 +172,13 @@ class LLMStrategy(AIStrategy):
         llm_logger.info("RESPONSE [%s]: %s", self.model, text)
         return text
 
-    def choose_crib_cards(self, hand, num_crib_cards):
+    def choose_crib_cards(self, hand, num_crib_cards, is_my_crib=False):
         try:
             cards_str = self._format_cards(hand)
+            crib_ownership = "This is your crib." if is_my_crib else "This is your opponent's crib."
             prompt = (
                 f"Your hand: [{cards_str}]\n"
+                f"{crib_ownership}\n"
                 f"Choose {num_crib_cards} card(s) to discard to the crib.\n"
                 f"Reply with ONLY the card indices (0-{hand.num_cards - 1}) "
                 f"separated by commas. Example: 0,3"
